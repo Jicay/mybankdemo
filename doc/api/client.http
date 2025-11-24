@@ -1,0 +1,12 @@
+### Get all clients
+GET {{endpoint}}/clients
+Content-Type: application/json
+
+### Create a client
+POST {{endpoint}}/clients
+Content-Type: application/json
+
+{
+  "lastName": "Public",
+  "firstName": "Client"
+}
