@@ -52,28 +52,37 @@ domaine métier des détails d'implémentation technique.
 ### Structure du projet
 
 ```
-src/main/java/com/example/mybank/
-├── domain/                          # Couche Domaine (cœur métier)
-│   ├── model/                       # Modèles du domaine
-│   ├── ports/                       # Interfaces (contrats)
-│   │   ├── driven/
-│   └── usecase/                     # Cas d'usage métier
-│       ├── client/
-│       └── account/
+src/main/
+├── java/com/example/mybank/
+│   ├── domain/                          # Couche Domaine (cœur métier)
+│   │   ├── model/                       # Modèles du domaine
+│   │   ├── ports/                       # Interfaces (contrats)
+│   │   │   ├── driven/
+│   │   └── usecase/                     # Cas d'usage métier
+│   │       ├── client/
+│   │       └── account/
+│   │
+│   ├── infrastructure/                  # Couche Infrastructure
+│   │   ├── application/                 # Configuration de l'application
+│   │   │   └── config/
+│   │   │       └── UseCaseConfiguration.java
+│   │   ├── driven/                      # Adaptateurs sortants (bases de données, etc.)
+│   │   │   ├── jpa/                     # Entités JPA et repositories
+│   │   │   └── jdbc/                    # Implémentation JDBC
+│   │   └── driving/                     # Adaptateurs entrants (API, UI, etc.)
+│   │       ├── web/                     # Contrôleurs web (Thymeleaf)
+│   │       └── rest/
+│   │           ├── GlobalExceptionHandler.java
+│   │           └── dto/                 # Data Transfer Objects
+│   │
+│   └── DemoMyBankApplication.java       # Point d'entrée Spring Boot
 │
-├── infrastructure/                  # Couche Infrastructure
-│   ├── application/                 # Configuration de l'application
-│   │   └── config/
-│   │       └── UseCaseConfiguration.java
-│   ├── driven/                      # Adaptateurs sortants (bases de données, etc.)
-│   │   ├── jpa/                     # Entités JPA et repositories
-│   │   └── jdbc/                    # Implémentation JDBC
-│   └── driving/                     # Adaptateurs entrants (API, UI, etc.)
-│       └── rest/
-│           ├── GlobalExceptionHandler.java
-│           └── dto/                 # Data Transfer Objects
-│
-└── DemoMyBankApplication.java       # Point d'entrée Spring Boot
+├── resources/
+│   ├── templates/                       # Templates Thymeleaf
+│   │   └── error/                       # Pages d'erreur personnalisées
+│   ├── static/                          # Ressources statiques (JS, CSS)
+│   │   └── js/
+│   └── db/changelog/                    # Migrations Liquibase
 ```
 
 ### Principes appliqués
@@ -92,13 +101,21 @@ src/main/java/com/example/mybank/
 
 - **Java 25** : Version moderne du langage avec support des records et pattern matching
 - **Spring Boot 4.0.0** : Framework d'application avec autoconfiguration
-    - `spring-boot-starter-web` : Pour l'API REST
+    - `spring-boot-starter-web` : Pour l'API REST et serveur web
+    - `spring-boot-starter-thymeleaf` : Moteur de templates pour le rendu HTML côté serveur
     - `spring-boot-starter-logging` : Gestion des logs (SLF4J + Logback)
     - `spring-boot-starter-validation` : Validation Bean Validation (JSR-303)
     - `spring-boot-starter-data-jpa` : ORM avec Hibernate
     - `spring-boot-starter-jdbc` : Accès aux bases de données
     - `spring-boot-devtools` : Rechargement automatique en développement
     - `spring-boot-docker-compose` : Intégration Docker Compose
+
+### Frontend
+
+- **Thymeleaf** : Moteur de templates Java pour le rendu server-side
+- **Alpine.js 3.x** : Framework JavaScript réactif minimaliste (~15kb)
+- **Pico CSS 2** : Framework CSS sans classes pour un design moderne
+- **Fetch API** : Communication AJAX avec l'API REST
 
 ### Build & Gestion de dépendances
 
@@ -177,7 +194,86 @@ L'application démarre sur **http://localhost:8080**
 curl http://localhost:8080/api/clients
 ```
 
+Ou simplement ouvrir **http://localhost:8080** dans votre navigateur.
+
+## 🎨 Interface Web
+
+### Technologies Frontend
+
+L'application dispose d'une **interface web moderne** construite avec :
+
+- **Thymeleaf** : Moteur de templates côté serveur pour le rendu HTML
+- **Alpine.js 3.x** : Framework JavaScript léger pour l'interactivité (alternative à Vue.js/React)
+- **Pico CSS 2** : Framework CSS minimaliste sans classes pour un design élégant
+- **Fetch API** : Appels AJAX vers l'API REST
+
+### Pages disponibles
+
+#### 1. Page d'accueil - Liste des clients (`/`)
+
+**Rendu** : Server-side avec Thymeleaf  
+**Features** :
+
+- Affichage de tous les clients dans un tableau
+- Lien vers la page des comptes de chaque client
+- Navigation simple et intuitive
+
+**Template** : `src/main/resources/templates/index.html`
+
+#### 2. Page des comptes (`/clients/{clientId}/accounts`)
+
+**Rendu** : Client-side avec Alpine.js  
+**Features** :
+
+- Récupération automatique du `clientId` depuis l'URL
+- Liste dynamique des comptes du client
+- Formulaire de création de compte avec validation
+- États de chargement et gestion d'erreurs
+- Mise à jour en temps réel après création
+
+**Template** : `src/main/resources/templates/accounts.html`
+
+#### 3. Pages d'erreur personnalisées
+
+- **404 Not Found** : `/error/404`
+- **500 Server Error** : `/error/500`
+- **Erreur générique** : `/error/generic`
+
+Redirection automatique depuis JavaScript en cas d'erreur API.
+
+### Gestion des erreurs côté client
+
+Le fichier `app.js` contient une fonction utilitaire `fetchWithRedirect()` qui :
+
+- Gère automatiquement les erreurs HTTP
+- Redirige vers les pages d'erreur appropriées
+- Supporte les appels avec ou sans redirection
+
+```javascript
+async function fetchWithRedirect(url, options = {}, withRedirect = true) {
+    try {
+        const res = await fetch(url, options);
+        if (!res.ok) {
+            // Redirection automatique selon le code HTTP
+            if (res.status === 404) window.location.href = '/error/404';
+            if (res.status >= 500) window.location.href = '/error/500';
+        }
+        return res.json();
+    } catch (e) {
+        // Erreur réseau ou CORS
+        window.location.href = '/error/generic';
+    }
+}
+```
+
 ## 🔗 URLs Utiles
+
+### Interface Web (Frontend)
+
+| URL                                                   | Description                                |
+|-------------------------------------------------------|--------------------------------------------|
+| **http://localhost:8080/**                            | 🏠 Page d'accueil - Liste des clients      |
+| **http://localhost:8080/clients/{clientId}/accounts** | 💰 Page de gestion des comptes d'un client |
 
 ### Documentation et Exploration de l'API
 
@@ -195,61 +291,6 @@ curl http://localhost:8080/api/clients
 | `POST`  | `/api/clients`                     | Créer un nouveau client        | 201, 400, 409    |
 | `GET`   | `/api/clients/{clientId}/accounts` | Lister les comptes d'un client | 200              |
 | `POST`  | `/api/clients/{clientId}/accounts` | Créer un compte pour un client | 201, 400, 404    |
-
-## 📝 Validation et Documentation Swagger
-
-### Validation des données
-
-L'application utilise **Jakarta Validation** (JSR-303) pour valider les requêtes :
-
-```java
-
-@RequestBody
-@Valid
-CreateClientRequest dto
-@RequestBody
-@Valid
-CreateAccountRequest request
-```
-
-- Les erreurs de validation retournent un code **400 Bad Request** avec un `ErrorResponse`
-- Les erreurs métier retournent un code **409 Conflict** (ex: client déjà existant)
-- Les ressources non trouvées retournent **404 Not Found**
-
-### Annotations OpenAPI
-
-Les endpoints sont documentés avec des annotations SpringDoc :
-
-```java
-@Operation(summary = "Description de l'opération")
-@ApiResponse(responseCode = "200", description = "Succès")
-@ApiResponse(responseCode = "400", description = "Erreur de validation",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-@ApiResponse(responseCode = "409", description = "Conflit métier",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-@Tag(name = "Clients", description = "Gestion des clients")
-```
-
-**Importante** : Pour que SpringDoc génère correctement les types de retour pour les erreurs (pas `ClientDTO` mais
-`ErrorResponse`), utilisez toujours l'attribut `content` :
-
-```java
-content =@Content(schema = @Schema(implementation = ErrorResponse.class))
-```
-
-### Enums dans Swagger
-
-Pour indiquer qu'un champ est une enum dans la documentation Swagger, utilisez `allowableValues` :
-
-```java
-
-@Schema(description = "Type de compte",
-        example = "COMPTE_COURANT",
-        allowableValues = {"COMPTE_COURANT", "LIVRET_A", "LDD", "PEA", "CTO", "PEL"})
-String type
-```
-
-Cela affichera une liste déroulante dans Swagger UI avec les valeurs autorisées.
 
 ## 📡 Détails des Endpoints API
 
@@ -519,7 +560,7 @@ docker-compose restart database
 ✅ **Architecture propre** : Séparation couches, inversion des dépendances  
 ✅ **Immutabilité** : Records, Value Objects immuables  
 ✅ **Validation** : Règles métier centralisées dans le domaine  
-✅ **Documentation** : Swagger/OpenAPI, commentaires javadoc  
+✅ **Documentation** : Swagger/OpenAPI
 ✅ **Logging** : Logs structurés, niveaux appropriés  
 ✅ **Gestion d'erreurs** : Exceptions métier, handling centralisé
 
@@ -531,13 +572,22 @@ docker-compose restart database
 - [Domain-Driven Design - Eric Evans](https://www.domainlanguage.com/ddd/)
 - [Refactoring Guru - Design Patterns](https://refactoring.guru/design-patterns)
 
-### Technologies
+### Technologies Backend
 
 - [Spring Boot Documentation](https://spring.io/projects/spring-boot)
 - [Spring Data JPA](https://spring.io/projects/spring-data-jpa)
+- [Thymeleaf Documentation](https://www.thymeleaf.org/documentation.html)
 - [SpringDoc OpenAPI](https://springdoc.org/)
 - [ULID Specification](https://github.com/ulid/spec)
 - [PostgreSQL Documentation](https://www.postgresql.org/docs/)
+- [Liquibase Documentation](https://docs.liquibase.com/)
+
+### Technologies Frontend
+
+- [Alpine.js Documentation](https://alpinejs.dev/)
+- [Alpine.js GitHub](https://github.com/alpinejs/alpine)
+- [Pico CSS Documentation](https://picocss.com/)
+- [MDN - Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API)
 
 ### Bonnes pratiques
 
@@ -552,8 +602,11 @@ docker-compose restart database
 - [ ] Docker Desktop en cours d'exécution
 - [ ] `docker-compose up -d` exécuté
 - [ ] Application lancée avec `./gradlew bootRun`
+- [ ] Interface web accessible à http://localhost:8080/
 - [ ] Swagger accessible à http://localhost:8080/swagger-ui.html
-- [ ] Premier endpoint testé (ex: GET /api/clients)
+- [ ] Premier endpoint API testé (ex: GET /api/clients)
+- [ ] Page des comptes testée avec un clientId valide
+- [ ] Alpine.js fonctionne correctement (interactivité sur la page des comptes)
 - [ ] IDE configuré avec les bons settings
 - [ ] Gradle et dépendances synchronisées
 

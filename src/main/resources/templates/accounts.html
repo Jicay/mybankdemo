@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>MyBank - Comptes du client</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"/>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body>
+<main class="container" x-data="accountsApp()">
+    <nav>
+        <ul>
+            <li><a href="/">← Retour aux clients</a></li>
+        </ul>
+    </nav>
+    <h1>Comptes du client</h1>
+
+    <section>
+        <h2>Créer un compte</h2>
+        <form @submit.prevent="createAccount()">
+            <div class="grid">
+                <input type="text" x-model="newAccount.name" name="name" placeholder="Nom du compte" required>
+                <select x-model="newAccount.type" name="type">
+                    <option value="COMPTE_COURANT">Compte Courant</option>
+                    <option value="LIVRET_A">Livret A</option>
+                    <option value="LDD">LDD</option>
+                    <option value="PEA">PEA</option>
+                    <option value="CTO">CTO</option>
+                    <option value="PEL">PEL</option>
+                </select>
+                <input type="number" x-model="newAccount.amount" name="amount" step=".01" placeholder="Montant initial"
+                       required>
+                <button type="submit" :disabled="saving">Créer</button>
+            </div>
+        </form>
+        <small id="account-form-message"></small>
+    </section>
+
+    <section>
+        <h2>Liste des comptes</h2>
+        <table>
+            <thead>
+            <tr>
+                <th>Nom</th>
+                <th>Type</th>
+                <th>Solde</th>
+            </tr>
+            </thead>
+            <tbody id="accounts-tbody">
+            <!-- Chargement -->
+            <template x-if="loading">
+                <tr>
+                    <td colspan="3">Chargement...</td>
+                </tr>
+            </template>
+
+            <!-- Erreur -->
+            <template x-if="error && !loading">
+                <tr>
+                    <td colspan="3" style="color: red;" x-text="error"></td>
+                </tr>
+            </template>
+
+            <!-- Aucun compte -->
+            <template x-if="!loading && !error && accounts.length === 0">
+                <tr>
+                    <td colspan="3">Aucun compte</td>
+                </tr>
+            </template>
+
+            <!-- Liste des comptes -->
+            <template x-if="!loading && !error && accounts.length > 0">
+                <template x-for="account in accounts" :key="account.id">
+                    <tr>
+                        <td x-text="account.name"></td>
+                        <td x-text="account.type"></td>
+                        <td x-text="(account.amountCents / 100).toFixed(2) + ' €'"></td>
+                    </tr>
+                </template>
+            </template>
+            </tbody>
+        </table>
+    </section>
+</main>
+<script src="/js/app.js"></script>
+<script>
+    function accountsApp() {
+        return {
+            clientId: null,
+            accounts: [],
+            newAccount: {name: '', type: 'COMPTE_COURANT', amount: 0},
+            saving: false,
+            loading: true,
+            error: null,
+
+            init() {
+                const pathParts = window.location.pathname.split('/');
+                const clientsIndex = pathParts.indexOf('clients');
+                if (clientsIndex !== -1 && pathParts[clientsIndex + 1]) {
+                    this.clientId = pathParts[clientsIndex + 1];
+                }
+                if (!this.clientId) {
+                    this.error = "Client ID manquant dans l'URL";
+                    this.loading = false;
+                    return;
+                }
+
+                this.loadAccounts();
+            },
+
+            loadAccounts() {
+                fetchWithRedirect(`/api/clients/${this.clientId}/accounts`)
+                    .then(data => {
+                        console.log(data)
+                        this.accounts = data;
+                        this.loading = false;
+                    })
+                    .catch(e => {
+                        this.error = e.message;
+                        this.loading = false;
+                    });
+            },
+
+            createAccount() {
+                this.saving = true;
+                const headers = {'Content-Type': 'application/json'};
+                fetchWithRedirect(`/api/clients/${this.clientId}/accounts`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(
+                        {
+                            name: this.newAccount.name,
+                            type: this.newAccount.type,
+                            amountCents: Number(this.newAccount.amount * 100)
+                        }
+                    )
+                })
+                    .then(() => {
+                        this.loadAccounts();
+                        this.newAccount = {name: '', type: 'COMPTE_COURANT', amount: 0};
+                        this.saving = false;
+                    });
+            }
+        }
+    }
+</script>
+</body>
+</html>
