@@ -15,39 +15,173 @@ entièrement documentée avec Swagger/OpenAPI.
 Ce projet suit les principes de l'**architecture hexagonale** (aussi appelée Ports & Adapters), qui vise à isoler le
 domaine métier des détails d'implémentation technique.
 
+```mermaid
+graph TB
+    subgraph Infrastructure["🔷 Infrastructure Layer"]
+        subgraph Driving["⬅️ Driving Adapters (Primary/Left)"]
+            Web["🌐 Web (Thymeleaf)"]
+            REST["🔌 REST API"]
+        end
+
+        subgraph Driven["➡️ Driven Adapters (Secondary/Right)"]
+            JPA["💾 Adapter<br/>JPA Repositories<br/>PostgreSQL"]
+            JDBC["💾 Adapter<br/>JDBC Repositories<br/>PostgreSQL"]
+        end
+    end
+
+    subgraph Domain["🎯 Domain Layer (Core Business Logic)"]
+        UseCases["📋 Use Cases"]
+        Models["🏗️ Domain Models"]
+        Ports["🔌 Ports (Interfaces)"]
+    end
+
+    Web -->|Uses| UseCases
+    REST -->|Uses| UseCases
+    UseCases -->|Manipulates| Models
+    UseCases -.->|Depends on| Ports
+    JPA -.->|Implements| Ports
+    JDBC -.->|Implements| Ports
+    style Domain fill: #e1f5ff, stroke: #01579b, stroke-width: 3px
+    style Infrastructure fill: #fff3e0, stroke: #e65100, stroke-width: 2px
+    style UseCases fill: #f3e5f5, stroke: #4a148c, stroke-width: 2px
+    style Models fill: #e8f5e9, stroke: #1b5e20, stroke-width: 2px
+    style Ports fill: #fff9c4, stroke: #f57f17, stroke-width: 2px
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Infrastructure Layer                      │
-│                                                               │
-│  ┌──────────────────┐              ┌──────────────────┐    │
-│  │  Driving (API)   │              │  Driven (Data)   │    │
-│  │                  │              │                  │    │
-│  │ ClientController │              │ JpaClient        │    │
-│  │ AccountController│              │ Repository       │    │
-│  │     (REST)       │              │  + JPA Entities  │    │
-│  └────────┬─────────┘              └────────▲─────────┘    │
-│           │                                  │               │
-└───────────┼──────────────────────────────────┼───────────────┘
-            │                                  │
-            │        ┌──────────────────────┐  │
-            │        │   Domain Layer       │  │
-            │        │                      │  │
-            └───────►│   Use Cases:        │  │
-                     │   - CreateClient    │◄─┘
-                     │   - ListClients     │
-                     │   - CreateAccount   │
-                     │   - ListAccounts    │
-                     │                      │
-                     │   Models:            │
-                     │   - Client           │
-                     │   - Account          │
-                     │   - Amount           │
-                     │                      │
-                     │   Ports:             │
-                     │   - ClientRepository │
-                     │   - AccountRepository│
-                     └──────────────────────┘
+
+**Légende :**
+
+- **🎯 Domain Layer** : Cœur métier, indépendant de toute technologie
+- **⬅️ Driving Adapters** : Points d'entrée (Web, REST API)
+- **➡️ Driven Adapters** : Points de sortie (Base de données, Services externes)
+- **🔌 Ports** : Interfaces définissant les contrats
+- **➡️ Flèches pleines** : Dépendances directes
+- **⤏ Flèches pointillées** : Implémentation d'interface
+
+### Flux d'une requête - Exemple : Créer un compte
+
+```mermaid
+sequenceDiagram
+    actor User as 👤 Utilisateur
+    participant Web as 🌐 Page Web<br/>(Alpine.js)
+    participant Controller as 🔌 AccountController<br/>(REST)
+    participant UseCase as 📋 CreateAccount<br/>(Use Case)
+    participant Domain as 🏗️ Account<br/>(Domain Model)
+    participant Port as 🔌 AccountRepository<br/>(Port)
+    participant Adapter as 💾 JpaAccountRepository<br/>(Adapter)
+    participant DB as 🗄️ PostgreSQL
+    User ->> Web: Remplit le formulaire<br/>et clique "Créer"
+    Web ->> Controller: POST /api/clients/{id}/accounts<br/>{name, type, amountCents}
+    Controller ->> Controller: Validation @Valid
+    Controller ->> UseCase: create(clientId, name, type, amount)
+    UseCase ->> Domain: new Account(id, clientId, name, type, amount)
+    Domain ->> Domain: Validation des règles métier
+    UseCase ->> Port: save(account)
+    Port ->> Adapter: save(account)
+    Adapter ->> Adapter: Conversion Domain → Entity
+    Adapter ->> DB: INSERT INTO accounts...
+    DB -->> Adapter: ✅ Success
+    Adapter -->> Port: Account (saved)
+    Port -->> UseCase: Account (saved)
+    UseCase -->> Controller: AccountDTO
+    Controller -->> Web: 201 CREATED<br/>{id, name, type, amountCents}
+    Web ->> Web: Recharge la liste<br/>(loadAccounts())
+    Web -->> User: ✅ Affiche le nouveau compte
 ```
+
+**Points clés :**
+
+1. 🎯 **Le domaine reste pur** : Pas de dépendance vers l'infrastructure
+2. ⬆️ **L'infrastructure dépend du domaine** : Inversion de dépendances (DIP)
+3. 🔌 **Les ports définissent les contrats** : Interfaces stables
+4. 🔄 **Les adapters implémentent les ports** : Détails techniques isolés
+
+### Modèles du domaine
+
+```mermaid
+classDiagram
+    class Client {
+        <<record>>
+        +Id id
+        +Name lastName
+        +Name firstName
+        +Client(Id, Name, Name)
+    }
+
+    class ClientId {
+        <<record>>
+        +Ulid value
+        +ClientId()
+        +ClientId(Ulid)
+        +from(String) ClientId$
+    }
+
+    class ClientName {
+        <<record>>
+        +String value
+        +ClientName(String)
+    }
+
+    class Account {
+        <<record>>
+        +Id id
+        +ClientId clientId
+        +Name name
+        +Type type
+        +Amount amount
+        +Account(Id, ClientId, Name, Type, Amount)
+    }
+
+    class AccountId {
+        <<record>>
+        +Ulid value
+        +AccountId()
+        +AccountId(Ulid)
+        +from(String) AccountId$
+    }
+
+    class AccountName {
+        <<record>>
+        +String value
+        +AccountName(String)
+    }
+
+    class Amount {
+        <<record>>
+        +long value
+        +Amount(long)
+        +add(Amount) Amount
+        +subtract(Amount) Amount
+    }
+
+    class AccountType {
+        <<enumeration>>
+        COMPTE_COURANT
+        LIVRET_A
+        LDD
+        PEA
+        CTO
+        PEL
+    }
+
+    Client *-- ClientId: contains
+    Client *-- ClientName: lastName
+    Client *-- ClientName: firstName
+    Account *-- AccountId: contains
+    Account *-- ClientId: belongs to
+    Account *-- AccountName: contains
+    Account *-- AccountType: has
+    Account *-- Amount: contains
+    note for Client "Value Objects garantissent\nl'immutabilité et la validation"
+    note for Account "Records Java pour\ndes modèles concis"
+```
+
+**Principes DDD appliqués :**
+
+- 🔵 **Entités** : `Client`, `Account` (identité unique via `Id`)
+- 🟢 **Value Objects** : `Name`, `Amount`, `Id` (immutables, comparés par valeur)
+- 🟡 **Enums** : `AccountType` (ensemble fini de valeurs)
+- ✅ **Validation dans les constructeurs** : Garantit l'intégrité des données
+- ✅ **Immutabilité** : Utilisation de records Java
 
 ### Structure du projet
 
