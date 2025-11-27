@@ -10,3 +10,17 @@ Content-Type: application/json
   "lastName": "Public",
   "firstName": "Client"
 }
+
+### Get accounts by client id
+GET {{endpoint}}/clients/01KAXB5WXKWJBQR5VSHX4BMH5G/accounts
+Content-Type: application/json
+
+### Create account for client id
+POST {{endpoint}}/clients/01KAXB5WXKWJBQR5VSHX4BMH5G/accounts
+Content-Type: application/json
+
+{
+  "amountCents": 12399,
+  "name": "Compte principal",
+  "type": "COMPTE_COURANT"
+}

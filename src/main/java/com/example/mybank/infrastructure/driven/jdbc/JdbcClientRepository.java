@@ -13,8 +13,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Map;
 
-import static java.lang.IO.println;
-
 @Repository
 public class JdbcClientRepository implements ClientRepository {
     private static final Logger logger = LoggerFactory.getLogger(JdbcClientRepository.class);
@@ -34,13 +32,14 @@ public class JdbcClientRepository implements ClientRepository {
     @Override
     public List<Client> findAll() {
         logger.debug("Retrieving all clients from database");
-        return jdbcTemplate.query("SELECT id, last_name, first_name FROM clients ORDER BY last_name, first_name", MAPPER);
+        return jdbcTemplate.query(
+                "SELECT id, last_name, first_name FROM clients ORDER BY last_name, first_name",
+                MAPPER
+        );
     }
 
     @Override
     public Client add(Client client) {
-        println("Adding client to database: " + client);
-        println("Adding id to database: " + client.id().toString());
         int updated = jdbcTemplate.update(
                 // language=SQL
                 "INSERT INTO clients (id, last_name, first_name) VALUES (:id, :last_name, :first_name) ON CONFLICT (id) DO NOTHING",
@@ -62,6 +61,16 @@ public class JdbcClientRepository implements ClientRepository {
                         "last_name", lastName.value(),
                         "first_name", firstName.value()
                 ),
+                Integer.class
+        );
+        return count != null && count > 0;
+    }
+
+    @Override
+    public boolean existsById(Id clientId) {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(1) FROM clients WHERE id = :id",
+                Map.of("id", clientId.value().toString()),
                 Integer.class
         );
         return count != null && count > 0;

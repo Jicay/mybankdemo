@@ -1,5 +1,6 @@
 package com.example.mybank.infrastructure.driving.rest;
 
+import com.example.mybank.domain.usecase.account.CreateAccount.ClientNotFoundException;
 import com.example.mybank.domain.usecase.client.CreateClient.ClientAlreadyExistsException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -40,6 +41,14 @@ public class GlobalExceptionHandler {
         logger.warn("ClientAlreadyExists: {}", ex.getMessage());
         return getErrorResponseResponseEntity(request, CONFLICT, ex.getMessage());
     }
+
+    @ExceptionHandler(ClientNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleClientNotFound(ClientNotFoundException ex,
+                                                              HttpServletRequest request) {
+        logger.warn("ClientNotFound: {}", ex.getMessage());
+        return getErrorResponseResponseEntity(request, NOT_FOUND, ex.getMessage());
+    }
+
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex,

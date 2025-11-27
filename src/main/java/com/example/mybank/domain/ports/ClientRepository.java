@@ -12,5 +12,7 @@ public interface ClientRepository {
     Client add(Client client);
 
     boolean existsBy(Name lastName, Name firstName);
+
+    boolean existsById(Client.Id clientId);
 }
 
