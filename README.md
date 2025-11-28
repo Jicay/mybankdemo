@@ -16,6 +16,17 @@ Ce projet suit les principes de l'**architecture hexagonale** (aussi appelée Po
 domaine métier des détails d'implémentation technique.
 
 ```mermaid
+---
+config:
+  theme: 'base'
+  themeVariables:
+    primaryColor: '#BB2528'
+    primaryTextColor: '#fff'
+    primaryBorderColor: '#7C0000'
+    lineColor: '#F8B229'
+    secondaryColor: '#006100'
+    tertiaryColor: '#fff'
+---
 graph TB
     subgraph Infrastructure["🔷 Infrastructure Layer"]
         subgraph Driving["⬅️ Driving Adapters (Primary/Left)"]
@@ -24,8 +35,8 @@ graph TB
         end
 
         subgraph Driven["➡️ Driven Adapters (Secondary/Right)"]
-            JPA["💾 Adapter<br/>JPA Repositories<br/>PostgreSQL"]
-            JDBC["💾 Adapter<br/>JDBC Repositories<br/>PostgreSQL"]
+            JPA["💾 Adapter JPA"]
+            JDBC["💾 Adapter JDBC"]
         end
     end
 
@@ -43,9 +54,9 @@ graph TB
     JDBC -.->|Implements| Ports
     style Domain fill: #e1f5ff, stroke: #01579b, stroke-width: 3px
     style Infrastructure fill: #fff3e0, stroke: #e65100, stroke-width: 2px
-    style UseCases fill: #f3e5f5, stroke: #4a148c, stroke-width: 2px
-    style Models fill: #e8f5e9, stroke: #1b5e20, stroke-width: 2px
-    style Ports fill: #fff9c4, stroke: #f57f17, stroke-width: 2px
+    style UseCases fill: #4a148c, stroke: #4a148c, stroke-width: 2px
+    style Models fill: #1b5e20, stroke: #1b5e20, stroke-width: 2px
+    style Ports fill: #f57f17, stroke: #f57f17, stroke-width: 2px
 ```
 
 **Légende :**

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>MyBank - Erreur serveur</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <style>
+        .error-container {
+            text-align: center;
+            padding: 4rem 1rem;
+            min-height: 60vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .error-code {
+            font-size: 8rem;
+            font-weight: bold;
+            line-height: 1;
+            margin: 0;
+            color: var(--pico-primary);
+            opacity: 0.8;
+        }
+
+        .error-title {
+            font-size: 2rem;
+            margin: 1rem 0;
+            color: var(--pico-color);
+        }
+
+        .error-message {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            color: var(--pico-muted-color);
+            max-width: 600px;
+        }
+
+        .error-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+<header class="container">
+    <nav>
+        <ul>
+            <li><a href="/"><strong>MyBank</strong></a></li>
+        </ul>
+    </nav>
+</header>
+<main class="container">
+    <div class="error-container">
+        <div class="error-icon">⚠️</div>
+        <h1 class="error-code">500</h1>
+        <h2 class="error-title">Erreur serveur interne</h2>
+        <p class="error-message">
+            Une erreur inattendue s'est produite sur le serveur.
+            Nos équipes ont été notifiées et travaillent à résoudre le problème.
+            Veuillez réessayer dans quelques instants.
+        </p>
+        <div>
+            <a href="/" role="button">Retour à l'accueil</a>
+            <a href="javascript:location.reload()" role="button" class="secondary">Réessayer</a>
+        </div>
+    </div>
+</main>
+<footer class="container">
+    <small>
+        © 2025 MyBank - Projet pédagogique
+    </small>
+</footer>
+</body>
+</html>
+
