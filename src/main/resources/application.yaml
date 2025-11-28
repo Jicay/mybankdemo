@@ -11,3 +11,8 @@ spring:
   sql:
     init:
       mode: never
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-seconds: 3600

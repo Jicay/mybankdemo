@@ -13,6 +13,11 @@
         <ul>
             <li><a href="/">← Retour aux clients</a></li>
         </ul>
+        <ul>
+            <li>
+                <button id="btn-logout" class="secondary">Déconnexion</button>
+            </li>
+        </ul>
     </nav>
     <h1>Comptes du client</h1>
 
@@ -87,7 +92,6 @@
 <script>
     function accountsApp() {
         return {
-            clientId: null,
             accounts: [],
             newAccount: {name: '', type: 'COMPTE_COURANT', amount: 0},
             saving: false,
@@ -95,22 +99,15 @@
             error: null,
 
             init() {
-                const pathParts = window.location.pathname.split('/');
-                const clientsIndex = pathParts.indexOf('clients');
-                if (clientsIndex !== -1 && pathParts[clientsIndex + 1]) {
-                    this.clientId = pathParts[clientsIndex + 1];
-                }
-                if (!this.clientId) {
-                    this.error = "Client ID manquant dans l'URL";
-                    this.loading = false;
-                    return;
-                }
-
                 this.loadAccounts();
             },
 
             loadAccounts() {
-                fetchWithRedirect(`/api/clients/${this.clientId}/accounts`)
+                const headers = {};
+                if (Auth.token) headers['Authorization'] = `Bearer ${Auth.token}`;
+                fetchWithRedirect('/api/clients/accounts', {
+                    headers: headers
+                })
                     .then(data => {
                         console.log(data)
                         this.accounts = data;
@@ -125,7 +122,8 @@
             createAccount() {
                 this.saving = true;
                 const headers = {'Content-Type': 'application/json'};
-                fetchWithRedirect(`/api/clients/${this.clientId}/accounts`, {
+                if (Auth.token) headers['Authorization'] = `Bearer ${Auth.token}`;
+                fetchWithRedirect('/api/clients/accounts', {
                     method: 'POST',
                     headers: headers,
                     body: JSON.stringify(
@@ -144,6 +142,28 @@
             }
         }
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Bind logout button
+        const btn = document.getElementById('btn-logout');
+        if (btn) {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (window.Auth && typeof Auth.logout === 'function') {
+                    Auth.logout();
+                } else {
+                    window.location.href = '/login';
+                }
+            });
+            // Hide button if not logged in
+            try {
+                if (!Auth || !Auth.token) {
+                    btn.style.display = 'none';
+                }
+            } catch (_) {
+            }
+        }
+    });
 </script>
 </body>
 </html>

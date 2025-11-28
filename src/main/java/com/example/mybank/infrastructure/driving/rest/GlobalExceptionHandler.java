@@ -2,11 +2,14 @@ package com.example.mybank.infrastructure.driving.rest;
 
 import com.example.mybank.domain.usecase.account.CreateAccount.ClientNotFoundException;
 import com.example.mybank.domain.usecase.client.CreateClient.ClientAlreadyExistsException;
+import com.example.mybank.domain.usecase.user.CreateUser.UserAlreadyExistsException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -48,6 +51,26 @@ public class GlobalExceptionHandler {
         return getErrorResponseResponseEntity(request, NOT_FOUND, ex.getMessage());
     }
 
+    @ExceptionHandler(UserAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleUserAlreadyExists(UserAlreadyExistsException ex,
+                                                                 HttpServletRequest request) {
+        logger.warn("UserAlreadyExistsException: {}", ex.getMessage());
+        return getErrorResponseResponseEntity(request, CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthenticationException(AuthenticationException ex,
+                                                                       HttpServletRequest request) {
+        logger.warn("AuthenticationException: {}", ex.getMessage());
+        return getErrorResponseResponseEntity(request, UNAUTHORIZED, "Authentication required: " + ex.getMessage());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDeniedException(AccessDeniedException ex,
+                                                                     HttpServletRequest request) {
+        logger.warn("AccessDeniedException: {}", ex.getMessage());
+        return getErrorResponseResponseEntity(request, FORBIDDEN, "Access denied: " + ex.getMessage());
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex,

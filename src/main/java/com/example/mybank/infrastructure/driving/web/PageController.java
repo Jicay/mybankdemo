@@ -1,4 +1,4 @@
-package com.example.mybank.infrastructure.driving.rest.web;
+package com.example.mybank.infrastructure.driving.web;
 
 import com.example.mybank.domain.usecase.client.ListClients;
 import com.example.mybank.infrastructure.driving.rest.dto.ClientDTO;
@@ -26,7 +26,27 @@ public class PageController {
         return "accounts"; // src/main/resources/templates/accounts.html
     }
 
+    @GetMapping("/accounts")
+    public String clientAccounts() {
+        return "accounts"; // src/main/resources/templates/accounts.html
+    }
+
+    @GetMapping("/login")
+    public String login() {
+        return "login";
+    }
+
+    @GetMapping("/register")
+    public String register() {
+        return "register";
+    }
+
     // Explicit routes to render custom error pages when JS redirects on HTTP failures
+    @GetMapping("/error/403")
+    public String error403() {
+        return "error/403";
+    }
+
     @GetMapping("/error/404")
     public String error404() {
         return "error/404";

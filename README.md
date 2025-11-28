@@ -92,6 +92,7 @@ src/main/
 │   │       ├── web/                     # Contrôleurs web (Thymeleaf)
 │   │       └── rest/
 │   │           ├── GlobalExceptionHandler.java
+│   │           ├── security/            # Sécurité (JWT, filtres)
 │   │           └── dto/                 # Data Transfer Objects
 │   │
 │   └── DemoMyBankApplication.java       # Point d'entrée Spring Boot
@@ -254,11 +255,24 @@ L'application dispose d'une **interface web moderne** construite avec :
 
 #### 3. Pages d'erreur personnalisées
 
-- **404 Not Found** : `/error/404`
-- **500 Server Error** : `/error/500`
-- **Erreur générique** : `/error/generic`
+**Design** : Pico CSS avec messages clairs en français  
+**Features** :
 
-Redirection automatique depuis JavaScript en cas d'erreur API.
+- Messages explicatifs adaptés à chaque erreur
+- Boutons d'action (Retour à l'accueil, Page précédente, Réessayer)
+- Icônes emoji pour une meilleure compréhension
+- Design responsive et cohérent avec l'application
+
+**Pages disponibles** :
+
+- **403 Forbidden** : `/error/403` - 🚫 Accès interdit
+- **404 Not Found** : `/error/404` - 🔍 Page introuvable
+- **500 Server Error** : `/error/500` - ⚠️ Erreur serveur interne
+- **Erreur générique** : `/error/generic` - ❌ Erreur non catégorisée
+
+**Templates** : `src/main/resources/templates/error/*.html`
+
+**Redirection automatique** depuis JavaScript en cas d'erreur API.
 
 ### Gestion des erreurs côté client
 
@@ -285,14 +299,230 @@ async function fetchWithRedirect(url, options = {}, withRedirect = true) {
 }
 ```
 
+## 🔐 Sécurité
+
+### Authentification et Autorisation
+
+L'application utilise **Spring Security** avec authentification **JWT (JSON Web Token)** pour sécuriser l'accès aux
+ressources.
+
+#### Composants de sécurité
+
+```
+infrastructure/driving/rest/security/
+├── JwtAuthenticationFilter.java       # Filtre pour valider les tokens JWT
+├── JwtTokenProvider.java              # Génération et validation des tokens
+└──  SecurityConfig.java                # Configuration Spring Security
+```
+
+#### Flow d'authentification
+
+```mermaid
+sequenceDiagram
+    participant User as 👤 Utilisateur
+    participant Client as 🌐 Client (Browser)
+    participant API as 🔌 API
+    participant Security as 🛡️ Spring Security
+    participant JWT as 🎫 JWT Provider
+    participant DB as 🗄️ Database
+    User ->> Client: Entre username/password
+    Client ->> API: POST /api/auth/login
+    API ->> Security: Authentifier
+    Security ->> DB: Vérifier credentials
+    DB -->> Security: User trouvé
+    Security ->> JWT: Générer token
+    JWT -->> API: Token JWT
+    API -->> Client: {token, user}
+    Client ->> Client: Stocke token (localStorage)
+    Note over Client, API: Requêtes suivantes
+    Client ->> API: GET /api/clients<br/>Header: Authorization: Bearer {token}
+    API ->> Security: Valider token
+    Security ->> JWT: Vérifier signature & expiration
+    JWT -->> Security: Token valide
+    Security -->> API: Utilisateur authentifié
+    API ->> DB: Récupérer données
+    DB -->> API: Données
+    API -->> Client: 200 OK + données
+```
+
+### Configuration de sécurité
+
+#### Endpoints publics (sans authentification)
+
+- `POST /api/auth/login` - Connexion
+- `POST /api/clients/register` - Inscription
+- `GET /error/**` - Pages d'erreur
+- `/swagger-ui.html`, `/v3/api-docs/**` - Documentation API
+
+#### Endpoints protégés (JWT requis)
+
+- `GET /api/clients` - Liste des clients
+- `POST /api/clients` - Créer un client
+- `GET /api/clients/accounts` - Liste des comptes
+- `POST /api/clients/accounts` - Créer un compte
+- Tous les autres endpoints `/api/**`
+
+### JWT (JSON Web Token)
+
+#### Structure du token
+
+```
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.    ← Header
+eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp.  ← Payload
+SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw  ← Signature
+```
+
+**Contenu du payload** :
+
+```json
+{
+  "sub": "username",
+  "username": "username",
+  "clientId": "01KB5409F8BXVDYJJR27SS6HSC",
+  "iat": 1732791000,
+  // Issued At
+  "exp": 1732794600
+  // Expiration (1h)
+}
+```
+
+#### Configuration
+
+- **Algorithme** : HS256 (HMAC avec SHA-256)
+- **Secret** : Clé secrète stockée dans les variables d'environnement
+- **Durée de validité** : 1 heure (3600 secondes)
+
+### Stockage du token côté client
+
+```javascript
+// Après login réussi
+const response = await fetch('/api/auth/login', {...});
+const data = await response.json();
+
+// Stocker le token
+localStorage.setItem('token', data.token);
+
+// Utiliser le token dans les requêtes
+fetch('/api/clients', {
+    headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+    }
+});
+```
+
+### Protection CSRF
+
+- **Désactivé pour l'API REST** : Utilisation de tokens JWT (stateless)
+- **Activé pour les pages web** : Protection automatique Spring Security pour Thymeleaf
+
+### Headers de sécurité
+
+Spring Security configure automatiquement les headers HTTP de sécurité :
+
+```http
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1; mode=block
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+```
+
+### Validation des données
+
+#### Côté serveur (Spring Validation)
+
+```java
+
+@PostMapping("/register")
+public ResponseEntity<ClientDTO> register(@Valid @RequestBody RegisterRequest request) {
+    // ...
+}
+```
+
+**Annotations utilisées** :
+
+- `@NotBlank` : Champ non vide
+- `@Email` : Format email valide
+- `@Size(min = 8)` : Longueur minimum du mot de passe
+- `@Pattern` : Expression régulière personnalisée
+
+#### Côté client (Alpine.js)
+
+```html
+<input type="email" x-model="credentials.username" required>
+<input type="password" x-model="credentials.password" minlength="8" required>
+```
+
+### Gestion des mots de passe
+
+- **Encodage** : BCrypt avec facteur de coût 12
+- **Pas de stockage en clair** : Jamais de mot de passe en base de données non encodé
+- **Validation** : Minimum 8 caractères (extensible avec règles de complexité)
+
+```java
+
+@Bean
+public PasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder(12);
+}
+```
+
+### Gestion des erreurs d'authentification
+
+#### 401 Unauthorized
+
+Retourné quand :
+
+- Token JWT manquant
+- Token JWT invalide ou expiré
+- Credentials incorrects lors du login
+
+#### 403 Forbidden
+
+Retourné quand :
+
+- Utilisateur authentifié mais sans les permissions nécessaires
+- Accès à une ressource interdite
+
+### Bonnes pratiques implémentées
+
+✅ **Authentification stateless** : JWT pour scalabilité  
+✅ **Passwords sécurisés** : BCrypt avec salt automatique  
+✅ **Token expiration** : Limite la durée de validité  
+✅ **HTTPS recommandé** : En production pour chiffrer les communications  
+✅ **Validation stricte** : Côté serveur et client  
+✅ **Headers de sécurité** : Protection XSS, clickjacking, MIME sniffing  
+✅ **Gestion d'erreurs** : Messages d'erreur non informatifs pour la sécurité
+
+### Améliorations futures
+
+🔄 **Refresh tokens** : Renouvellement automatique sans re-login  
+🔄 **Rate limiting** : Limitation des tentatives de connexion  
+🔄 **2FA/MFA** : Authentification à deux facteurs  
+🔄 **OAuth 2.0** : Connexion avec Google, GitHub, etc.  
+🔄 **Audit logging** : Traçabilité des actions sensibles  
+🔄 **Role-Based Access Control (RBAC)** : Permissions granulaires par rôle
+
 ## 🔗 URLs Utiles
 
 ### Interface Web (Frontend)
 
-| URL                                                   | Description                                |
-|-------------------------------------------------------|--------------------------------------------|
-| **http://localhost:8080/**                            | 🏠 Page d'accueil - Liste des clients      |
-| **http://localhost:8080/clients/{clientId}/accounts** | 💰 Page de gestion des comptes d'un client |
+| URL                                | Description                                |
+|------------------------------------|--------------------------------------------|
+| **http://localhost:8080/**         | 🏠 Page d'accueil - Liste des clients      |
+| **http://localhost:8080/accounts** | 💰 Page de gestion des comptes d'un client |
+| **http://localhost:8080/login**    | 🔑 Page de connexion utilisateur           |
+| **http://localhost:8080/register** | 📝 Page d'inscription/création de compte   |
+| **http://localhost:8080/login**    | 🔑 Page de connexion utilisateur           |
+| **http://localhost:8080/register** | 📝 Page d'inscription/création de compte   |
+
+### Pages d'erreur personnalisées
+
+| URL                                     | Description                               |
+|-----------------------------------------|-------------------------------------------|
+| **http://localhost:8080/error/403**     | 🚫 Accès interdit (Forbidden)             |
+| **http://localhost:8080/error/404**     | 🔍 Page introuvable (Not Found)           |
+| **http://localhost:8080/error/500**     | ⚠️ Erreur serveur (Internal Server Error) |
+| **http://localhost:8080/error/generic** | ❌ Erreur générique (fallback)             |
 
 ### Documentation et Exploration de l'API
 
@@ -304,12 +534,16 @@ async function fetchWithRedirect(url, options = {}, withRedirect = true) {
 
 ### Endpoints de l'application
 
-| Méthode | Endpoint                           | Description                    | Codes de réponse |
-|---------|------------------------------------|--------------------------------|------------------|
-| `GET`   | `/api/clients`                     | Lister tous les clients        | 200              |
-| `POST`  | `/api/clients`                     | Créer un nouveau client        | 201, 400, 409    |
-| `GET`   | `/api/clients/{clientId}/accounts` | Lister les comptes d'un client | 200              |
-| `POST`  | `/api/clients/{clientId}/accounts` | Créer un compte pour un client | 201, 400, 404    |
+| Méthode | Endpoint                | Description                    | Codes de réponse   |
+|---------|-------------------------|--------------------------------|--------------------|
+| `GET`   | `/api/clients`          | Lister tous les clients        | 200, 401           |
+| `POST`  | `/api/clients`          | Créer un nouveau client        | 201, 400, 401, 409 |
+| `GET`   | `/api/clients/accounts` | Lister les comptes d'un client | 200, 401           |
+| `POST`  | `/api/clients/accounts` | Créer un compte pour un client | 201, 400, 401, 404 |
+| `POST`  | `/api/auth/login`       | Authentifier l'utilisateur     | 200, 400, 401      |
+| `POST`  | `/api/clients/register` | Créer un utilisateur           | 201, 400, 409      |
+| `POST`  | `/api/auth/login`       | Authentifier l'utilisateur     | 200, 400, 401      |
+| `POST`  | `/api/clients/register` | Créer un utilisateur           | 200, 400, 401, 409 |
 
 ## 📡 Détails des Endpoints API
 
@@ -441,6 +675,130 @@ Content-Type: application/json
 
 - `400 Bad Request` : Données invalides
 - `404 Not Found` : Client non trouvé
+
+### 5. Authentifier un utilisateur (Login)
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "username": "john.doe@example.com",
+  "password": "motdepasse123"
+}
+```
+
+**Paramètres** :
+
+- `username` (body) : Email ou nom d'utilisateur (string)
+- `password` (body) : Mot de passe (string)
+
+**Réponse** : `200 OK`
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "type": "Bearer",
+  "expiresIn": 3600,
+  "user": {
+    "id": "01JDEXAMPLE123456789",
+    "username": "john.doe@example.com",
+    "firstName": "John",
+    "lastName": "Doe"
+  }
+}
+```
+
+**Erreurs possibles** :
+
+- `400 Bad Request` : Données manquantes ou invalides
+  ```json
+  {
+    "timestamp": "2025-11-28T10:30:00Z",
+    "status": 400,
+    "error": "Bad Request",
+    "message": "Validation failed",
+    "path": "/api/auth/login",
+    "validationErrors": {
+      "username": "must not be blank",
+      "password": "must not be blank"
+    }
+  }
+  ```
+- `401 Unauthorized` : Identifiants incorrects
+  ```json
+  {
+    "timestamp": "2025-11-28T10:30:00Z",
+    "status": 401,
+    "error": "Unauthorized",
+    "message": "Invalid username or password",
+    "path": "/api/auth/login",
+    "validationErrors": null
+  }
+  ```
+
+### 6. Créer un utilisateur (Register)
+
+```http
+POST /api/clients/register
+Content-Type: application/json
+
+{
+  "username": "john.doe@example.com",
+  "password": "motdepasse123",
+  "firstName": "John",
+  "lastName": "Doe"
+}
+```
+
+**Paramètres** :
+
+- `username` (body) : Email ou nom d'utilisateur unique (string)
+- `password` (body) : Mot de passe (min 8 caractères) (string)
+- `firstName` (body) : Prénom (string)
+- `lastName` (body) : Nom de famille (string)
+
+**Réponse** : `201 CREATED`
+
+```json
+{
+  "id": "01JDEXAMPLE123456789",
+  "username": "john.doe@example.com",
+  "firstName": "John",
+  "lastName": "Doe",
+  "createdAt": "2025-11-28T10:30:00Z"
+}
+```
+
+**Erreurs possibles** :
+
+- `400 Bad Request` : Données invalides
+  ```json
+  {
+    "timestamp": "2025-11-28T10:30:00Z",
+    "status": 400,
+    "error": "Bad Request",
+    "message": "Validation failed",
+    "path": "/api/clients/register",
+    "validationErrors": {
+      "username": "must be a valid email",
+      "password": "must be at least 8 characters",
+      "firstName": "must not be blank",
+      "lastName": "must not be blank"
+    }
+  }
+  ```
+- `409 Conflict` : Utilisateur déjà existant
+  ```json
+  {
+    "timestamp": "2025-11-28T10:30:00Z",
+    "status": 409,
+    "error": "Conflict",
+    "message": "User already exists with username: john.doe@example.com",
+    "path": "/api/clients/register",
+    "validationErrors": null
+  }
+  ```
 
 ### Fichiers de test HTTP
 
@@ -594,6 +952,8 @@ docker-compose restart database
 ### Technologies Backend
 
 - [Spring Boot Documentation](https://spring.io/projects/spring-boot)
+- [Spring Security Documentation](https://spring.io/projects/spring-security)
+- [Spring Security JWT](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/jwt.html)
 - [Spring Data JPA](https://spring.io/projects/spring-data-jpa)
 - [Thymeleaf Documentation](https://www.thymeleaf.org/documentation.html)
 - [SpringDoc OpenAPI](https://springdoc.org/)
@@ -624,7 +984,11 @@ docker-compose restart database
 - [ ] Interface web accessible à http://localhost:8080/
 - [ ] Swagger accessible à http://localhost:8080/swagger-ui.html
 - [ ] Premier endpoint API testé (ex: GET /api/clients)
+- [ ] **Authentification testée** (login/register fonctionnent)
+- [ ] **Token JWT reçu** après connexion réussie
 - [ ] Page des comptes testée avec un clientId valide
+- [ ] Pages d'erreur testées (404, 500, etc.)
+- [ ] Diagrammes Mermaid visibles dans le README
 - [ ] Alpine.js fonctionne correctement (interactivité sur la page des comptes)
 - [ ] IDE configuré avec les bons settings
 - [ ] Gradle et dépendances synchronisées
