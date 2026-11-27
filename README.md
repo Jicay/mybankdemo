@@ -31,12 +31,14 @@ graph TB
     subgraph Infrastructure["🔷 Infrastructure Layer"]
         subgraph Driving["⬅️ Driving Adapters (Primary/Left)"]
             Web["🌐 Web (Thymeleaf)"]
-            REST["🔌 REST API"]
+            REST["🔌 REST API + SSE"]
+            KafkaIn["📥 Kafka Consumer"]
         end
 
         subgraph Driven["➡️ Driven Adapters (Secondary/Right)"]
             JPA["💾 Adapter JPA"]
             JDBC["💾 Adapter JDBC"]
+            KafkaOut["📤 Kafka Producer"]
         end
     end
 
@@ -48,6 +50,8 @@ graph TB
 
     Web -->|Uses| UseCases
     REST -->|Uses| UseCases
+    KafkaIn -->|Uses| UseCases
+    REST -->|Publishes| KafkaOut
     UseCases -->|Manipulates| Models
     UseCases -.->|Depends on| Ports
     JPA -.->|Implements| Ports
@@ -62,8 +66,8 @@ graph TB
 **Légende :**
 
 - **🎯 Domain Layer** : Cœur métier, indépendant de toute technologie
-- **⬅️ Driving Adapters** : Points d'entrée (Web, REST API)
-- **➡️ Driven Adapters** : Points de sortie (Base de données, Services externes)
+- **⬅️ Driving Adapters** : Points d'entrée (Web, REST API, consommation Kafka)
+- **➡️ Driven Adapters** : Points de sortie (Base de données, publication Kafka)
 - **🔌 Ports** : Interfaces définissant les contrats
 - **➡️ Flèches pleines** : Dépendances directes
 - **⤏ Flèches pointillées** : Implémentation d'interface
@@ -79,7 +83,9 @@ src/main/
 │   │   │   ├── driven/
 │   │   └── usecase/                     # Cas d'usage métier
 │   │       ├── client/
-│   │       └── account/
+│   │       ├── account/
+│   │       ├── user/
+│   │       └── transaction/             # Create, List et Stream (SSE)
 │   │
 │   ├── infrastructure/                  # Couche Infrastructure
 │   │   ├── application/                 # Configuration de l'application
@@ -87,17 +93,23 @@ src/main/
 │   │   │       └── UseCaseConfiguration.java
 │   │   ├── driven/                      # Adaptateurs sortants (bases de données, etc.)
 │   │   │   ├── jpa/                     # Entités JPA et repositories
-│   │   │   └── jdbc/                    # Implémentation JDBC
-│   │   └── driving/                     # Adaptateurs entrants (API, UI, etc.)
-│   │       ├── web/                     # Contrôleurs web (Thymeleaf)
-│   │       └── rest/
-│   │           ├── GlobalExceptionHandler.java
-│   │           ├── security/            # Sécurité (JWT, filtres)
-│   │           └── dto/                 # Data Transfer Objects
+│   │   │   ├── jdbc/                    # Implémentation JDBC
+│   │   │   └── kafka/                   # Publication des transactions (profil producer)
+│   │   ├── driving/                     # Adaptateurs entrants (API, UI, etc.)
+│   │   │   ├── web/                     # Contrôleurs web (Thymeleaf)
+│   │   │   ├── kafka/                   # Consommation des transactions (profil consumer)
+│   │   │   └── rest/
+│   │   │       ├── GlobalExceptionHandler.java
+│   │   │       ├── security/            # Sécurité (JWT, filtres)
+│   │   │       └── dto/                 # Data Transfer Objects
+│   │   └── messaging/                   # TransactionEvent (message Kafka)
 │   │
 │   └── DemoMyBankApplication.java       # Point d'entrée Spring Boot
 │
 ├── resources/
+│   ├── application.yaml                 # Configuration commune (Kafka)
+│   ├── application-consumer.yaml        # BDD, JWT, binding Kafka entrant
+│   ├── application-producer.yaml        # Port 8081, binding Kafka sortant
 │   ├── templates/                       # Templates Thymeleaf
 │   │   └── error/                       # Pages d'erreur personnalisées
 │   ├── static/                          # Ressources statiques (JS, CSS)
@@ -129,6 +141,9 @@ src/main/
     - `spring-boot-starter-jdbc` : Accès aux bases de données
     - `spring-boot-devtools` : Rechargement automatique en développement
     - `spring-boot-docker-compose` : Intégration Docker Compose
+    - `spring-boot-starter-webflux` : `Flux` et Sinks Reactor pour le streaming SSE
+- **Spring Cloud Stream 2025.1** (compatible Spring Boot 4) : Messaging avec le binder Kafka
+    - `spring-cloud-stream` et `spring-cloud-stream-binder-kafka`
 
 ### Frontend
 
@@ -157,6 +172,7 @@ src/main/
 
 - **Docker Compose** : Orchestration des conteneurs
 - **PostgreSQL 15.2** : Base de données relationnelle
+- **Kafka 7.4.4 (Confluent) + Zookeeper** : Broker de messages pour les transactions
 
 ## 🚀 Démarrage rapide
 
@@ -187,26 +203,44 @@ Cela démarre PostgreSQL sur le port 5432 avec les credentials :
 - Base de données : `mydatabase`
 - Mot de passe : `secret`
 
+Ainsi que Kafka sur **localhost:29092** (et Zookeeper).
+
 #### 3. Lancer l'application
 
-**Option 1 : Avec Gradle Wrapper (recommandé)**
+Le même code démarre en **deux applications** selon le profil Spring actif :
+
+| Profil     | Port | Rôle                                                                     |
+|------------|------|--------------------------------------------------------------------------|
+| `consumer` | 8080 | Application principale : UI, API, BDD, consomme les transactions Kafka   |
+| `producer` | 8081 | API minimale qui publie les transactions dans Kafka (pas de BDD)         |
+
+La variable d'environnement `JWT_SECRET` est obligatoire pour le profil `consumer`.
+
+**Option 1 : Depuis l'IDE IntelliJ IDEA (recommandé)**
+
+- Lancer les configurations `Run Consumer` et `Run Producer` (dossier `.run/`), simultanément
+
+**Option 2 : Avec Gradle Wrapper**
 
 ```bash
-./gradlew bootRun
+# Terminal 1
+JWT_SECRET=localtest ./gradlew bootRun --args='--spring.profiles.active=consumer'
+# Terminal 2
+./gradlew bootRun --args='--spring.profiles.active=producer'
 ```
 
-**Option 2 : Compiler et exécuter**
+**Option 3 : Compiler et exécuter**
 
 ```bash
 ./gradlew build
-java -jar build/libs/demoMyBank-0.0.1-SNAPSHOT.jar
+JWT_SECRET=localtest java -jar build/libs/mybank-0.0.1-SNAPSHOT.jar --spring.profiles.active=consumer
+java -jar build/libs/mybank-0.0.1-SNAPSHOT.jar --spring.profiles.active=producer
 ```
 
-**Option 3 : Depuis l'IDE IntelliJ IDEA**
+L'application principale démarre sur **http://localhost:8080**, le producer sur **http://localhost:8081**.
 
-- Clic droit sur `DemoMyBankApplication.java` → Run
-
-L'application démarre sur **http://localhost:8080**
+> ⚠️ Après son démarrage, le consumer met jusqu'à ~30 s à rejoindre le topic Kafka (log
+> `partitions assigned`). Une transaction envoyée avant est ignorée.
 
 #### 4. Vérifier que l'application fonctionne
 
@@ -253,7 +287,19 @@ L'application dispose d'une **interface web moderne** construite avec :
 
 **Template** : `src/main/resources/templates/accounts.html`
 
-#### 3. Pages d'erreur personnalisées
+#### 3. Page des transactions (`/transactions?accountId=...`)
+
+**Rendu** : Client-side avec Alpine.js  
+**Features** :
+
+- Accessible via le lien « Voir transactions » de chaque compte
+- Chargement des transactions existantes (`GET /api/transactions`)
+- Réception en temps réel des nouvelles transactions via `EventSource` (SSE), sans rafraîchir la page
+- Le JWT est passé en query param `authorization` car `EventSource` ne permet pas d'envoyer de header
+
+**Template** : `src/main/resources/templates/transactions.html`
+
+#### 4. Pages d'erreur personnalisées
 
 **Design** : Pico CSS avec messages clairs en français  
 **Features** :
@@ -298,6 +344,39 @@ async function fetchWithRedirect(url, options = {}, withRedirect = true) {
     }
 }
 ```
+
+## 📨 Transactions temps réel (SSE + Kafka)
+
+Une transaction est créée sur le **producer**, transite par **Kafka**, puis est enregistrée et diffusée en direct par
+le **consumer** :
+
+```mermaid
+sequenceDiagram
+    participant Client as Client HTTP
+    participant Producer as Producer :8081
+    participant Kafka as Kafka (topic transactions)
+    participant Consumer as Consumer :8080
+    participant DB as PostgreSQL
+    participant Browser as Page /transactions
+    Browser ->> Consumer: GET /api/transactions/stream (EventSource)
+    Client ->> Producer: POST /api/producer/transactions
+    Producer -->> Client: 202 Accepted
+    Producer ->> Kafka: TransactionEvent (Supplier<Flux>)
+    Kafka ->> Consumer: TransactionEvent (Consumer<T>)
+    Consumer ->> DB: CreateTransaction → save
+    Consumer -->> Browser: data:{transaction} (SSE)
+```
+
+**Composants** :
+
+- **Producer** : `TransactionProducerController` → `TransactionProducer` (Sink) → `TransactionProducerConfig`
+  (`Supplier<Flux<TransactionEvent>>`, binding `transactions-out-0`)
+- **Consumer** : `TransactionConsumerConfig` (`Consumer<TransactionEvent>`, binding `transactions-in-0`, groupe
+  `mybank-transactions`) → use case `CreateTransaction`
+- **SSE** : `CreateTransaction` publie dans un `Sinks.Many<Transaction>` partagé ; `StreamTransactions` expose ce Sink
+  filtré sur le compte demandé
+- **Profils** : les beans existants (UI, API, BDD, sécurité JWT) sont annotés `@Profile("consumer")`, ceux de
+  publication `@Profile("producer")`
 
 ## 🔐 Sécurité
 
@@ -360,7 +439,13 @@ sequenceDiagram
 - `POST /api/clients` - Créer un client
 - `GET /api/clients/accounts` - Liste des comptes
 - `POST /api/clients/accounts` - Créer un compte
+- `GET /api/transactions?accountId=...` - Liste des transactions d'un compte (403 si le compte n'appartient pas au client)
+- `GET /api/transactions/stream?accountId=...` - Flux SSE (token en header ou en query param `authorization`)
 - Tous les autres endpoints `/api/**`
+
+#### Producer (port 8081)
+
+- `POST /api/producer/transactions` - Public, aucune authentification
 
 ### JWT (JSON Web Token)
 
@@ -510,6 +595,7 @@ Retourné quand :
 |------------------------------------|--------------------------------------------|
 | **http://localhost:8080/**         | 🏠 Page d'accueil - Liste des clients      |
 | **http://localhost:8080/accounts** | 💰 Page de gestion des comptes d'un client |
+| **http://localhost:8080/transactions?accountId=...** | 💸 Transactions d'un compte en temps réel |
 | **http://localhost:8080/login**    | 🔑 Page de connexion utilisateur           |
 | **http://localhost:8080/register** | 📝 Page d'inscription/création de compte   |
 | **http://localhost:8080/login**    | 🔑 Page de connexion utilisateur           |
@@ -531,6 +617,7 @@ Retourné quand :
 | **http://localhost:8080/swagger-ui.html**  | 🔍 Interface Swagger UI - Exploration et test interactif de l'API |
 | **http://localhost:8080/v3/api-docs**      | 📄 Documentation OpenAPI au format JSON                           |
 | **http://localhost:8080/v3/api-docs.yaml** | 📄 Documentation OpenAPI au format YAML                           |
+| **http://localhost:8081/swagger-ui.html**  | 🔍 Swagger UI du producer                                          |
 
 ### Endpoints de l'application
 
@@ -544,6 +631,9 @@ Retourné quand :
 | `POST`  | `/api/clients/register` | Créer un utilisateur           | 201, 400, 409      |
 | `POST`  | `/api/auth/login`       | Authentifier l'utilisateur     | 200, 400, 401      |
 | `POST`  | `/api/clients/register` | Créer un utilisateur           | 200, 400, 401, 409 |
+| `GET`   | `/api/transactions?accountId=...`        | Lister les transactions d'un compte       | 200, 401, 403, 404 |
+| `GET`   | `/api/transactions/stream?accountId=...` | Flux SSE des nouvelles transactions       | 200, 401, 403, 404 |
+| `POST`  | `:8081/api/producer/transactions`        | Publier une transaction dans Kafka        | 202, 400           |
 
 ## 📡 Détails des Endpoints API
 
@@ -802,7 +892,8 @@ Content-Type: application/json
 
 ### Fichiers de test HTTP
 
-Les requêtes sont disponibles dans `doc/api/client.http` pour une utilisation avec :
+Les requêtes sont disponibles dans `doc/api/client.http` et `doc/api/transaction.http` (création via le producer,
+liste et flux SSE via le consumer) pour une utilisation avec :
 
 - **IntelliJ IDEA REST Client** (intégré à l'IDE)
 - **VS Code REST Client** (extension)
@@ -897,11 +988,14 @@ public record Amount(long value) {
 ### Exécution
 
 ```bash
-# Démarrer l'application en mode développement
-./gradlew bootRun
+# Démarrer l'application principale (consumer) en mode développement
+JWT_SECRET=localtest ./gradlew bootRun --args='--spring.profiles.active=consumer'
+
+# Démarrer le producer en mode développement
+./gradlew bootRun --args='--spring.profiles.active=producer'
 
 # Démarrer l'application en production (JAR)
-java -jar build/libs/demoMyBank-0.0.1-SNAPSHOT.jar --server.port=9000
+JWT_SECRET=... java -jar build/libs/mybank-0.0.1-SNAPSHOT.jar --spring.profiles.active=consumer
 ```
 
 ### Tests
@@ -980,13 +1074,14 @@ docker-compose restart database
 - [ ] Gradle Wrapper fonctionne (`./gradlew --version`)
 - [ ] Docker Desktop en cours d'exécution
 - [ ] `docker-compose up -d` exécuté
-- [ ] Application lancée avec `./gradlew bootRun`
+- [ ] Applications lancées : `Run Consumer` (8080) et `Run Producer` (8081)
 - [ ] Interface web accessible à http://localhost:8080/
 - [ ] Swagger accessible à http://localhost:8080/swagger-ui.html
 - [ ] Premier endpoint API testé (ex: GET /api/clients)
 - [ ] **Authentification testée** (login/register fonctionnent)
 - [ ] **Token JWT reçu** après connexion réussie
 - [ ] Page des comptes testée avec un clientId valide
+- [ ] Transaction créée via le producer et visible en direct sur la page des transactions
 - [ ] Pages d'erreur testées (404, 500, etc.)
 - [ ] Diagrammes Mermaid visibles dans le README
 - [ ] Alpine.js fonctionne correctement (interactivité sur la page des comptes)

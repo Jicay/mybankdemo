@@ -2,12 +2,14 @@ package com.example.mybank.infrastructure.driving.web;
 
 import com.example.mybank.domain.usecase.client.ListClients;
 import com.example.mybank.infrastructure.driving.rest.dto.ClientDTO;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
 @Controller
+@Profile("consumer")
 public class PageController {
     private final ListClients listClients;
 

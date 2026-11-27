@@ -10,6 +10,7 @@ import com.example.mybank.infrastructure.driving.rest.dto.CreateAccountRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,6 +20,7 @@ import static com.example.mybank.infrastructure.driving.rest.security.JwtTokenSe
 
 @RestController
 @RequestMapping("/api/clients/accounts")
+@Profile("consumer")
 public class AccountController {
     private static final Logger logger = LoggerFactory.getLogger(AccountController.class);
     private final ListAccounts listAccounts;

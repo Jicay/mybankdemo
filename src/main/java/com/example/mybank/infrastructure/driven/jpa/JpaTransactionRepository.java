@@ -5,11 +5,13 @@ import com.example.mybank.domain.model.Amount;
 import com.example.mybank.domain.model.Transaction;
 import com.example.mybank.domain.ports.TransactionRepository;
 import com.example.mybank.infrastructure.driven.jpa.entity.TransactionEntity;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
 @Repository
+@Profile("consumer")
 public class JpaTransactionRepository implements TransactionRepository {
 
     private final JpaTransactionSpringRepository springRepository;

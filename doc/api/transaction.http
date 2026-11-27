@@ -4,15 +4,14 @@ Accept: application/json
 Authorization: Bearer {{token}}
 
 ### Crée une transaction
-POST {{endpoint}}/transactions
+POST {{endpointProducer}}/producer/transactions
 Content-Type: application/json
 Accept: application/json
 
 {
   "accountId": "01M8C4RJP0SERZMMSJSSKFMRTZ",
   "amountCents": 234,
-  "type": "DEBIT",
-  "date": "2026-09-16T12:00:00Z"
+  "type": "DEBIT"
 }
 
 ### Stream des transactions (SSE)

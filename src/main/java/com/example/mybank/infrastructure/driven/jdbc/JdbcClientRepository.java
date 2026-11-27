@@ -6,6 +6,7 @@ import com.example.mybank.domain.model.Client.Name;
 import com.example.mybank.domain.ports.ClientRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 @Repository
+@Profile("consumer")
 public class JdbcClientRepository implements ClientRepository {
     private static final Logger logger = LoggerFactory.getLogger(JdbcClientRepository.class);
     private final NamedParameterJdbcTemplate jdbcTemplate;

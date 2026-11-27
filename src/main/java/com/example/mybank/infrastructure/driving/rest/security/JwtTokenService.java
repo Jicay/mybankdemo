@@ -5,6 +5,7 @@ import com.example.mybank.infrastructure.driving.rest.security.JwtAuthentication
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.security.core.context.SecurityContextHolder.getContext;
 
 @Component
+@Profile("consumer")
 public class JwtTokenService {
     private final SecretKey key;
     private final long expirationSeconds;

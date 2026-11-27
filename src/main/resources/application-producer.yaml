@@ -1,0 +1,18 @@
+spring:
+  cloud:
+    function:
+      definition: transactions
+    stream:
+      bindings:
+        transactions-out-0:
+          destination: transactions
+  # The producer has no database: only the consumer stores transactions
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
+      - org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration
+      - org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration
+
+server:
+  port: 8081

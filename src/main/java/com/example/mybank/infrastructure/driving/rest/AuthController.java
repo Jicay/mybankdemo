@@ -10,6 +10,7 @@ import com.example.mybank.infrastructure.driving.rest.dto.LoginRequest;
 import com.example.mybank.infrastructure.driving.rest.dto.RegisterRequest;
 import com.example.mybank.infrastructure.driving.rest.security.JwtTokenService;
 import jakarta.validation.Valid;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,6 +20,7 @@ import static org.springframework.http.HttpStatus.CREATED;
 
 @RestController
 @RequestMapping("/api/auth")
+@Profile("consumer")
 public class AuthController {
 
     private final CreateUser createUser;

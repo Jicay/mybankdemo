@@ -16,10 +16,12 @@ import com.example.mybank.domain.usecase.user.CreateUser;
 import com.example.mybank.domain.usecase.user.FindUser;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import reactor.core.publisher.Sinks;
 
 @Configuration
+@Profile("consumer")
 public class UseCaseConfiguration {
     @Bean
     public ListClients listClientsUseCase(ClientRepository clientRepository) {

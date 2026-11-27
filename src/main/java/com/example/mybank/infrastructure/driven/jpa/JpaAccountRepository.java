@@ -8,12 +8,14 @@ import com.example.mybank.domain.model.Amount;
 import com.example.mybank.domain.model.Client;
 import com.example.mybank.domain.ports.AccountRepository;
 import com.example.mybank.infrastructure.driven.jpa.entity.AccountEntity;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 
 @Repository
+@Profile("consumer")
 public class JpaAccountRepository implements AccountRepository {
     private final JpaAccountSpringRepository springRepository;
 

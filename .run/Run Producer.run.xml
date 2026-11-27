@@ -1,5 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-    <configuration default="false" name="Run" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <configuration default="false" name="Run Producer" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+        <option name="ACTIVE_PROFILES" value="producer"/>
         <envs>
             <env name="JWT_SECRET" value="localtest"/>
         </envs>

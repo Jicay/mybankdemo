@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +23,7 @@ import java.util.List;
 @RestController
 @Tag(name = "Clients", description = "Manage clients")
 @RequestMapping("/api/clients")
+@Profile("consumer")
 public class ClientController {
     private static final Logger logger = LoggerFactory.getLogger(ClientController.class);
     private final ListClients listClients;

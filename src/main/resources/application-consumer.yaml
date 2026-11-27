@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/mydatabase
+    username: myuser
+    password: secret
+    driver-class-name: org.postgresql.Driver
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  sql:
+    init:
+      mode: never
+  cloud:
+    function:
+      definition: transactions
+    stream:
+      bindings:
+        transactions-in-0:
+          destination: transactions
+          group: mybank-transactions
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-seconds: 3600

@@ -7,11 +7,13 @@ import com.example.mybank.domain.model.User.Login;
 import com.example.mybank.domain.model.User.Password;
 import com.example.mybank.domain.ports.UserRepository;
 import com.example.mybank.infrastructure.driven.jpa.entity.UserEntity;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
 @Repository
+@Profile("consumer")
 public class JpaUserRepository implements UserRepository {
     private final JpaUserSpringRepository springRepository;
 
