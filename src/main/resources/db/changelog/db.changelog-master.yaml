@@ -157,3 +157,11 @@ databaseChangeLog:
             columns:
               - column:
                   name: account_id
+  - changeSet:
+      id: 005-spring-batch
+      author: jicay
+      changes:
+        - sqlFile:
+            path: org/springframework/batch/core/schema-postgresql.sql
+            splitStatements: true
+            stripComments: true

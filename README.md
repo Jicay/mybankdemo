@@ -98,6 +98,7 @@ src/main/
 │   │   ├── driving/                     # Adaptateurs entrants (API, UI, etc.)
 │   │   │   ├── web/                     # Contrôleurs web (Thymeleaf)
 │   │   │   ├── kafka/                   # Consommation des transactions (profil consumer)
+│   │   │   ├── batch/                   # Job Spring Batch d'import CSV (config, dto, processor, writer)
 │   │   │   └── rest/
 │   │   │       ├── GlobalExceptionHandler.java
 │   │   │       ├── security/            # Sécurité (JWT, filtres)
@@ -110,6 +111,7 @@ src/main/
 │   ├── application.yaml                 # Configuration commune (Kafka)
 │   ├── application-consumer.yaml        # BDD, JWT, binding Kafka entrant
 │   ├── application-producer.yaml        # Port 8081, binding Kafka sortant
+│   ├── import/transactions.csv          # Fichier importé par le job Spring Batch
 │   ├── templates/                       # Templates Thymeleaf
 │   │   └── error/                       # Pages d'erreur personnalisées
 │   ├── static/                          # Ressources statiques (JS, CSS)
@@ -144,6 +146,8 @@ src/main/
     - `spring-boot-starter-webflux` : `Flux` et Sinks Reactor pour le streaming SSE
 - **Spring Cloud Stream 2025.1** (compatible Spring Boot 4) : Messaging avec le binder Kafka
     - `spring-cloud-stream` et `spring-cloud-stream-binder-kafka`
+- **Spring Batch 6** (`spring-boot-starter-batch-jdbc`) : Import de transactions depuis un CSV, historique des jobs
+  en base
 
 ### Frontend
 
@@ -378,6 +382,38 @@ sequenceDiagram
 - **Profils** : les beans existants (UI, API, BDD, sécurité JWT) sont annotés `@Profile("consumer")`, ceux de
   publication `@Profile("producer")`
 
+## 📦 Import de transactions (Spring Batch)
+
+Le consumer expose un job Spring Batch `transactionImportJob` qui importe `src/main/resources/import/transactions.csv` :
+
+```csv
+accountId,amountCents,type,date
+01K661WHAJYZ8GK0G4MXZ8DFY7,15075,CREDIT,2024-01-15 10:30:00
+```
+
+**Step `transactionImportStep`** (chunks de 100) :
+
+- **Reader** : `FlatFileItemReader<TransactionImportDto>` (record, en-tête ignoré)
+- **Processor** : `TransactionImportProcessor` valide la ligne et la transforme en `Transaction` ; une ligne invalide
+  (champ manquant, type différent de `CREDIT`/`DEBIT`, date hors format `yyyy-MM-dd HH:mm:ss`) est **filtrée** et
+  loggée
+- **Writer** : `TransactionImportWriter` passe par le use case `CreateTransaction` (les transactions importées sont
+  donc aussi diffusées en SSE)
+
+**Lancement et suivi** (port 8080, sans authentification) :
+
+```bash
+curl -X POST http://localhost:8080/api/batch/import-transactions   # lance le job, retourne jobId et statut
+curl http://localhost:8080/api/batch/job-status/1                   # lus / écrits / filtrés / ignorés
+curl http://localhost:8080/api/batch/jobs                           # historique des exécutions
+```
+
+Les tables de métadonnées Spring Batch (`BATCH_*`) sont créées par Liquibase (changeset `005-spring-batch`, script
+officiel `schema-postgresql.sql`). Le job n'est pas lancé au démarrage (`spring.batch.job.enabled: false`).
+
+> ⚠️ Les `accountId` du CSV doivent exister en base : un compte inconnu viole la clé étrangère et fait échouer le
+> job entier. Remplacez les identifiants du fichier par ceux de vos comptes avant de lancer l'import.
+
 ## 🔐 Sécurité
 
 ### Authentification et Autorisation
@@ -432,6 +468,7 @@ sequenceDiagram
 - `POST /api/clients/register` - Inscription
 - `GET /error/**` - Pages d'erreur
 - `/swagger-ui.html`, `/v3/api-docs/**` - Documentation API
+- `/api/batch/**` - Lancement et suivi des jobs Spring Batch
 
 #### Endpoints protégés (JWT requis)
 
@@ -634,6 +671,9 @@ Retourné quand :
 | `GET`   | `/api/transactions?accountId=...`        | Lister les transactions d'un compte       | 200, 401, 403, 404 |
 | `GET`   | `/api/transactions/stream?accountId=...` | Flux SSE des nouvelles transactions       | 200, 401, 403, 404 |
 | `POST`  | `:8081/api/producer/transactions`        | Publier une transaction dans Kafka        | 202, 400           |
+| `POST`  | `/api/batch/import-transactions`         | Lancer l'import CSV (Spring Batch)        | 200, 500           |
+| `GET`   | `/api/batch/job-status/{jobId}`          | Statut et compteurs d'une exécution       | 200, 404           |
+| `GET`   | `/api/batch/jobs`                        | Historique des exécutions                 | 200                |
 
 ## 📡 Détails des Endpoints API
 
@@ -892,8 +932,8 @@ Content-Type: application/json
 
 ### Fichiers de test HTTP
 
-Les requêtes sont disponibles dans `doc/api/client.http` et `doc/api/transaction.http` (création via le producer,
-liste et flux SSE via le consumer) pour une utilisation avec :
+Les requêtes sont disponibles dans `doc/api/client.http`, `doc/api/transaction.http` (création via le producer,
+liste et flux SSE via le consumer) et `doc/api/batch.http` (import Spring Batch) pour une utilisation avec :
 
 - **IntelliJ IDEA REST Client** (intégré à l'IDE)
 - **VS Code REST Client** (extension)
@@ -1082,6 +1122,7 @@ docker-compose restart database
 - [ ] **Token JWT reçu** après connexion réussie
 - [ ] Page des comptes testée avec un clientId valide
 - [ ] Transaction créée via le producer et visible en direct sur la page des transactions
+- [ ] Import CSV lancé via `POST /api/batch/import-transactions` (avec des `accountId` existants) et job `COMPLETED`
 - [ ] Pages d'erreur testées (404, 500, etc.)
 - [ ] Diagrammes Mermaid visibles dans le README
 - [ ] Alpine.js fonctionne correctement (interactivité sur la page des comptes)

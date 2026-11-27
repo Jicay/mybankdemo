@@ -37,6 +37,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.springframework.cloud:spring-cloud-stream")
     implementation("org.springframework.cloud:spring-cloud-stream-binder-kafka")
+    implementation("org.springframework.boot:spring-boot-starter-batch-jdbc")
 
     // JWT
     implementation("io.jsonwebtoken:jjwt-api:0.12.6")

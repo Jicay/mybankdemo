@@ -1,0 +1,11 @@
+### Import transactions
+POST {{endpoint}}/batch/import-transactions
+Content-Type: application/json
+
+### Statut d'un job
+GET {{endpoint}}/batch/job-status/1
+Content-Type: application/json
+
+### Jobs
+GET {{endpoint}}/batch/jobs
+Content-Type: application/json

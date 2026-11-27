@@ -9,6 +9,10 @@ spring:
   sql:
     init:
       mode: never
+  batch:
+    job:
+      # Jobs are launched through POST /api/batch/import-transactions, not at startup
+      enabled: false
   cloud:
     function:
       definition: transactions
