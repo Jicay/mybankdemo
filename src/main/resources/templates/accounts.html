@@ -50,27 +50,28 @@
                 <th>Nom</th>
                 <th>Type</th>
                 <th>Solde</th>
+                <th>Transactions</th>
             </tr>
             </thead>
             <tbody id="accounts-tbody">
             <!-- Chargement -->
             <template x-if="loading">
                 <tr>
-                    <td colspan="3">Chargement...</td>
+                    <td colspan="4">Chargement...</td>
                 </tr>
             </template>
 
             <!-- Erreur -->
             <template x-if="error && !loading">
                 <tr>
-                    <td colspan="3" style="color: red;" x-text="error"></td>
+                    <td colspan="4" style="color: red;" x-text="error"></td>
                 </tr>
             </template>
 
             <!-- Aucun compte -->
             <template x-if="!loading && !error && accounts.length === 0">
                 <tr>
-                    <td colspan="3">Aucun compte</td>
+                    <td colspan="4">Aucun compte</td>
                 </tr>
             </template>
 
@@ -81,6 +82,7 @@
                         <td x-text="account.name"></td>
                         <td x-text="account.type"></td>
                         <td x-text="(account.amountCents / 100).toFixed(2) + ' €'"></td>
+                        <td><a :href="'/transactions?accountId=' + encodeURIComponent(account.id)">Voir transactions</a></td>
                     </tr>
                 </template>
             </template>

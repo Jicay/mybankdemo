@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>MyBank - Transactions</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"/>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body>
+<main class="container" x-data="transactionsApp()">
+    <nav>
+        <ul>
+            <li><a href="/accounts">← Retour aux comptes</a></li>
+        </ul>
+        <ul>
+            <li>
+                <button id="btn-logout" class="secondary">Déconnexion</button>
+            </li>
+        </ul>
+    </nav>
+    <h1>Transactions</h1>
+
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Montant</th>
+            <th>Type</th>
+            <th>Date</th>
+        </tr>
+        </thead>
+        <tbody>
+        <template x-if="loading">
+            <tr>
+                <td colspan="4">Chargement...</td>
+            </tr>
+        </template>
+        <template x-if="error && !loading">
+            <tr>
+                <td colspan="4" style="color: red;" x-text="error"></td>
+            </tr>
+        </template>
+        <template x-if="!loading && !error && transactions.length === 0">
+            <tr>
+                <td colspan="4">Aucune transaction</td>
+            </tr>
+        </template>
+        <template x-for="tx in transactions" :key="tx.id">
+            <tr>
+                <td x-text="tx.id"></td>
+                <td x-text="(tx.amountCents / 100).toFixed(2) + ' €'"></td>
+                <td x-text="tx.type"></td>
+                <td x-text="new Date(tx.date).toLocaleString('fr-FR')"></td>
+            </tr>
+        </template>
+        </tbody>
+    </table>
+</main>
+<script src="/js/app.js"></script>
+<script>
+    function transactionsApp() {
+        return {
+            accountId: new URLSearchParams(window.location.search).get('accountId') || '',
+            transactions: [],
+            loading: true,
+            error: null,
+
+            init() {
+                this.loadTransactions();
+                this.listen();
+            },
+
+            loadTransactions() {
+                const headers = {};
+                if (Auth.token) headers['Authorization'] = `Bearer ${Auth.token}`;
+                fetchWithRedirect(`/api/transactions?accountId=${encodeURIComponent(this.accountId)}`, {headers})
+                    .then(data => {
+                        this.transactions = data.reverse();
+                        this.loading = false;
+                    })
+                    .catch(e => {
+                        this.error = e.message;
+                        this.loading = false;
+                    });
+            },
+
+            listen() {
+                // EventSource cannot send headers: the JWT goes in the "authorization" query param
+                const url = `/api/transactions/stream?accountId=${encodeURIComponent(this.accountId)}`
+                    + `&authorization=${encodeURIComponent(Auth.token || '')}`;
+                const source = new EventSource(url);
+                source.onmessage = (event) => this.transactions.unshift(JSON.parse(event.data));
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('btn-logout');
+        if (btn) {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                Auth.logout();
+            });
+        }
+    });
+</script>
+</body>
+</html>

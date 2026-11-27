@@ -110,3 +110,50 @@ databaseChangeLog:
             tableName: users
             columnNames: login
             constraintName: uk_users_login
+  - changeSet:
+      id: 004-create-transactions
+      author: jicay
+      changes:
+        - createTable:
+            tableName: transactions
+            columns:
+              - column:
+                  name: id
+                  type: varchar(26)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: account_id
+                  type: varchar(26)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount_cents
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: type
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: date
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: transactions
+            baseColumnNames: account_id
+            constraintName: fk_transactions_accounts
+            referencedTableName: accounts
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            tableName: transactions
+            indexName: idx_transactions_account
+            unique: false
+            columns:
+              - column:
+                  name: account_id

@@ -1,0 +1,21 @@
+### Liste les transactions d'un compte
+GET {{endpoint}}/transactions?accountId=ID_DU_COMPTE
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### Crée une transaction
+POST {{endpoint}}/transactions
+Content-Type: application/json
+Accept: application/json
+
+{
+  "accountId": "01M8C4RJP0SERZMMSJSSKFMRTZ",
+  "amountCents": 234,
+  "type": "DEBIT",
+  "date": "2026-09-16T12:00:00Z"
+}
+
+### Stream des transactions (SSE)
+GET {{endpoint}}/transactions/stream?accountId=ID_DU_COMPTE
+Accept: text/event-stream
+Authorization: Bearer {{token}}

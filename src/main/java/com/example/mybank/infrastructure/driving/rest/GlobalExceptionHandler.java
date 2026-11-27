@@ -2,6 +2,8 @@ package com.example.mybank.infrastructure.driving.rest;
 
 import com.example.mybank.domain.usecase.account.CreateAccount.ClientNotFoundException;
 import com.example.mybank.domain.usecase.client.CreateClient.ClientAlreadyExistsException;
+import com.example.mybank.domain.usecase.transaction.ListTransactions.AccountNotFoundException;
+import com.example.mybank.domain.usecase.transaction.ListTransactions.ClientNotAuthorizedException;
 import com.example.mybank.domain.usecase.user.CreateUser.UserAlreadyExistsException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -49,6 +51,20 @@ public class GlobalExceptionHandler {
                                                               HttpServletRequest request) {
         logger.warn("ClientNotFound: {}", ex.getMessage());
         return getErrorResponseResponseEntity(request, NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(AccountNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleAccountNotFound(AccountNotFoundException ex,
+                                                               HttpServletRequest request) {
+        logger.warn("AccountNotFound: {}", ex.getMessage());
+        return getErrorResponseResponseEntity(request, NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(ClientNotAuthorizedException.class)
+    public ResponseEntity<ErrorResponse> handleClientNotAuthorized(ClientNotAuthorizedException ex,
+                                                                   HttpServletRequest request) {
+        logger.warn("ClientNotAuthorized: {}", ex.getMessage());
+        return getErrorResponseResponseEntity(request, FORBIDDEN, "Access denied to this account");
     }
 
     @ExceptionHandler(UserAlreadyExistsException.class)

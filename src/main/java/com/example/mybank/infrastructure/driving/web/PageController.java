@@ -42,6 +42,11 @@ public class PageController {
     }
 
     // Explicit routes to render custom error pages when JS redirects on HTTP failures
+    @GetMapping("/transactions")
+    public String transactions() {
+        return "transactions";
+    }
+
     @GetMapping("/error/403")
     public String error403() {
         return "error/403";

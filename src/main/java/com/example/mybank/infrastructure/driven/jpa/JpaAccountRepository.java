@@ -11,6 +11,7 @@ import com.example.mybank.infrastructure.driven.jpa.entity.AccountEntity;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public class JpaAccountRepository implements AccountRepository {
@@ -31,6 +32,11 @@ public class JpaAccountRepository implements AccountRepository {
     public List<Account> findByClientId(Client.Id clientId) {
         return springRepository.findByClientId(clientId.value().toString())
                 .stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public Optional<Account> findById(Id accountId) {
+        return springRepository.findById(accountId.value().toString()).map(this::toDomain);
     }
 
     private AccountEntity toEntity(Account account) {
