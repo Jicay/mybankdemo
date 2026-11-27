@@ -1,26 +1,55 @@
-### Get all clients
-GET {{endpoint}}/clients
+### Register
+POST {{endpoint}}/auth/register
 Content-Type: application/json
 
-### Create a client
+{
+  "login": "jane",
+  "lastName": "Doe",
+  "firstName": "Jane",
+  "password": "secret"
+}
+
+### Login
+POST {{endpoint}}/auth/login
+Content-Type: application/json
+
+{
+  "login": "test",
+  "password": "password"
+}
+
+### Get all clients (public)
+GET {{endpoint}}/clients
+Content-Type: application/json
+Version: 2
+
+### Create a client (public)
 POST {{endpoint}}/clients
 Content-Type: application/json
+Version: 2
 
 {
   "lastName": "Public",
   "firstName": "Client"
 }
 
-### Get accounts by client id
-GET {{endpoint}}/clients/01KAXB5WXKWJBQR5VSHX4BMH5G/accounts
+### Get accounts by client id (requires token)
+GET {{endpoint}}/clients/accounts
 Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0IiwiY2xpZW50SWQiOiIwMUs1N005QTUzUVBWUDYzM0JZOTZQQVozViIsImxvZ2luIjoidGVzdCIsImlhdCI6MTc1ODAyNDk0NSwiZXhwIjoxNzU4MDI4NTQ1fQ.j7ESbsMk5YYe3YOfSO0PUc4Ty-F0IqSHuPXqD22C7kU
 
-### Create account for client id
-POST {{endpoint}}/clients/01KAXB5WXKWJBQR5VSHX4BMH5G/accounts
+
+### Create account for client id (requires token)
+POST {{endpoint}}/clients/accounts
 Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0IiwiY2xpZW50SWQiOiIwMUs1N005QTUzUVBWUDYzM0JZOTZQQVozViIsImxvZ2luIjoidGVzdCIsImlhdCI6MTc1ODAyNDk0NSwiZXhwIjoxNzU4MDI4NTQ1fQ.j7ESbsMk5YYe3YOfSO0PUc4Ty-F0IqSHuPXqD22C7kU
 
 {
   "amountCents": 12399,
   "name": "Compte principal",
   "type": "COMPTE_COURANT"
 }
+
+### Get all accounts (requires token)
+GET http://localhost:8080/accounts
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0IiwiY2xpZW50SWQiOiIwMUs1N005QTUzUVBWUDYzM0JZOTZQQVozViIsImxvZ2luIjoidGVzdCIsImlhdCI6MTc1ODAyNDk0NSwiZXhwIjoxNzU4MDI4NTQ1fQ.j7ESbsMk5YYe3YOfSO0PUc4Ty-F0IqSHuPXqD22C7kU

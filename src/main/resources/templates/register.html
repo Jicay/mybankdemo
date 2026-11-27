@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Créer un compte - MyBank</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body>
+<header class="container">
+    <nav>
+        <ul>
+            <li><a href="/">← Accueil</a></li>
+        </ul>
+        <ul>
+            <li><a href="/login">Se connecter</a></li>
+        </ul>
+    </nav>
+</header>
+<main class="container" x-data="registerApp()">
+    <h1>Créer un compte</h1>
+    <form @submit.prevent="register()">
+        <div class="grid">
+            <input x-model="credentials.login" name="login" placeholder="Login" required>
+            <input x-model="credentials.lastName" name="lastName" placeholder="Nom" required>
+            <input x-model="credentials.firstName" name="firstName" placeholder="Prénom" required>
+            <input x-model="credentials.password" name="password" type="password" placeholder="Mot de passe" required>
+            <button type="submit" :disabled="loading">
+                <span x-show="!loading">Créer</span>
+                <span x-show="loading">Création...</span>
+            </button>
+        </div>
+    </form>
+    <small x-show="error" x-text="error" style="color: var(--pico-del-color);"></small>
+    <p>Déjà un compte ? <a href="/login">Se connecter</a></p>
+</main>
+<script src="/js/app.js"></script>
+<script>
+    function registerApp() {
+        return {
+            credentials: {
+                login: '',
+                lastName: '',
+                firstName: '',
+                password: ''
+            },
+            error: '',
+            loading: false,
+
+            register() {
+                this.error = '';
+                this.loading = true;
+                fetchWithRedirect('/api/auth/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(this.credentials)
+                }, false)
+                    .then(resp => {
+                        Auth.token = resp.token;
+                        Auth.clientId = resp.clientId;
+                        Auth.login = resp.login;
+
+                        window.location.href = `/accounts`;
+                        this.loading = false;
+                    })
+                    .catch((e) => {
+                        this.error = e.message || 'Erreur';
+                        this.loading = false;
+                    });
+            }
+        }
+    }
+</script>
+</body>
+</html>

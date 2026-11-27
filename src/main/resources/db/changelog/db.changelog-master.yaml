@@ -78,3 +78,35 @@ databaseChangeLog:
             columns:
               - column:
                   name: client_id
+  - changeSet:
+      id: 003-create-users
+      author: jicay
+      changes:
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: varchar(26)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: login
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: password
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: client_id
+                  type: varchar(26)
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: users
+            columnNames: login
+            constraintName: uk_users_login
